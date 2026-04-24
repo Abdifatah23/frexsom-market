@@ -107,6 +107,10 @@ const Card = ({ children, style={} }) => (
 
 export default function App() {
   const [page, setPage] = useState("storefront");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const ADMIN_PIN = "1604"; // Your secret PIN — change this!
   const [products, setProducts] = useState(PRODUCTS);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
@@ -134,7 +138,11 @@ export default function App() {
   const [msgs, setMsgs] = useState([{ role:"assistant", content:"Salaam! 👋 Welcome to FrexSOM Market. I'm here to help with orders, delivery, payments and any questions. How can I help you today?" }]);
   const [chatIn, setChatIn] = useState("");
   const [chatLoad, setChatLoad] = useState(false);
-  const productsRef = useRef(null);
+  const navigateTo = (pg) => {
+    const adminPages = ["dashboard","sourcing","catalog","pricing","orders"];
+    if(adminPages.includes(pg) && !isAdmin) { setShowAdminLogin(true); return; }
+    setPage(pg);
+  };
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -284,7 +292,24 @@ export default function App() {
   return (
     <div style={{ display:"flex", height:"100vh", fontFamily:"'Segoe UI',system-ui,sans-serif", background:GRAY, overflow:"hidden" }}>
 
-      {/* Toast */}
+      {/* Admin Login Modal */}
+      {showAdminLogin&&(
+        <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(13,31,92,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"white",borderRadius:18,width:380,padding:36,textAlign:"center",boxShadow:"0 24px 64px rgba(0,0,0,0.3)"}}>
+            <div style={{fontSize:48,marginBottom:14}}>🔐</div>
+            <div style={{fontSize:20,fontWeight:800,color:NAVY,marginBottom:6}}>Admin Access</div>
+            <div style={{fontSize:13,color:"#7a86a0",marginBottom:24}}>Enter your PIN to access the admin panel</div>
+            <input type="password" value={adminPin} onChange={e=>setAdminPin(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"){ if(adminPin===ADMIN_PIN){setIsAdmin(true);setShowAdminLogin(false);setPage("dashboard");setAdminPin("");}else{showToast("Wrong PIN ❌","#ef4444");setAdminPin("");} }}}
+              placeholder="Enter PIN" maxLength={6}
+              style={{width:"100%",padding:"14px",borderRadius:12,border:"2px solid #dde1ee",fontSize:22,textAlign:"center",letterSpacing:8,boxSizing:"border-box",outline:"none",fontFamily:"inherit",marginBottom:16}}/>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{setShowAdminLogin(false);setAdminPin("");}} style={{flex:1,background:"#f0f2f8",color:"#64748b",border:"none",padding:"13px",borderRadius:10,cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>Cancel</button>
+              <button onClick={()=>{ if(adminPin===ADMIN_PIN){setIsAdmin(true);setShowAdminLogin(false);setPage("dashboard");setAdminPin("");}else{showToast("Wrong PIN ❌","#ef4444");setAdminPin("");}}} style={{flex:1,background:NAVY,color:"white",border:"none",padding:"13px",borderRadius:10,cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>Enter →</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast&&<div style={{ position:"fixed",top:22,right:22,zIndex:999,background:toast.color,color:"white",padding:"12px 22px",borderRadius:12,fontWeight:700,fontSize:14,boxShadow:"0 4px 24px rgba(0,0,0,0.18)",zIndex:1000 }}>{toast.msg}</div>}
 
       {/* Quick View */}
@@ -322,12 +347,18 @@ export default function App() {
         </div>
         <nav style={{ padding:"12px 10px",flex:1,overflowY:"auto" }}>
           {NAV_ITEMS.map(n=>(
-            <button key={n.id} onClick={()=>setPage(n.id)} style={{ display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 13px",background:page===n.id?`${ORANGE}22`:"transparent",border:page===n.id?`1px solid ${ORANGE}55`:"1px solid transparent",borderRadius:9,color:page===n.id?ORANGE:"rgba(255,255,255,0.65)",cursor:"pointer",fontSize:13.5,fontWeight:page===n.id?700:400,marginBottom:3,textAlign:"left",fontFamily:"inherit" }}>
+            <button key={n.id} onClick={()=>navigateTo(n.id)} style={{ display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 13px",background:page===n.id?`${ORANGE}22`:"transparent",border:page===n.id?`1px solid ${ORANGE}55`:"1px solid transparent",borderRadius:9,color:page===n.id?ORANGE:"rgba(255,255,255,0.65)",cursor:"pointer",fontSize:13.5,fontWeight:page===n.id?700:400,marginBottom:3,textAlign:"left",fontFamily:"inherit" }}>
               <span style={{ fontSize:15,width:20,textAlign:"center" }}>{n.icon}</span>{n.label}
               {n.id==="storefront"&&cartCount>0&&<span style={{ marginLeft:"auto",background:ORANGE,color:"white",borderRadius:"50%",width:19,height:19,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center" }}>{cartCount}</span>}
-              {n.id==="orders"&&<span style={{ marginLeft:"auto",background:"#ef4444",color:"white",borderRadius:"50%",width:19,height:19,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center" }}>{orders.filter(o=>o.status==="Processing").length}</span>}
+              {n.id==="orders"&&isAdmin&&<span style={{ marginLeft:"auto",background:"#ef4444",color:"white",borderRadius:"50%",width:19,height:19,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center" }}>{orders.filter(o=>o.status==="Processing").length}</span>}
+              {["dashboard","sourcing","catalog","pricing","orders"].includes(n.id)&&!isAdmin&&<span style={{marginLeft:"auto",fontSize:11,opacity:0.4}}>🔒</span>}
             </button>
           ))}
+          {isAdmin&&(
+            <button onClick={()=>{setIsAdmin(false);setPage("storefront");}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 13px",background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:9,color:"#ef4444",cursor:"pointer",fontSize:13,fontWeight:600,marginTop:10,fontFamily:"inherit"}}>
+              <span style={{fontSize:15}}>🚪</span> Exit Admin
+            </button>
+          )}
         </nav>
         <div style={{ padding:"12px 16px",borderTop:"1px solid rgba(255,255,255,0.07)" }}>
           <a href="mailto:info@frexsom.com" style={{ display:"block",fontSize:11,color:"rgba(255,255,255,0.35)",textDecoration:"none",marginBottom:3 }}>✉️ info@frexsom.com</a>
