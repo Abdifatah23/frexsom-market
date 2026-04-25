@@ -146,11 +146,34 @@ export default function App() {
   const handleSearch=()=>{ if(!searchInput.trim())return; setSearchQ(searchInput); setCatFilter("all"); setSubFilter(""); setTimeout(()=>productsRef.current?.scrollIntoView({behavior:'smooth'}),100); };
   const clearSearch=()=>{ setSearchQ(""); setSearchInput(""); };
 
-  const placeOrder=()=>{
+  const placeOrder = async () => {
     if(!form.name||!form.phone)return;
     const id="FRX-"+Math.random().toString(36).substring(2,8).toUpperCase();
-    setOrders(prev=>[{id,...form,items:cart.map(i=>`${i.name} × ${i.qty}`).join(", "),total:`$${cartTotal}`,status:"Processing",date:new Date().toISOString().split("T")[0]},...prev]);
+    const newOrder={id,...form,items:cart.map(i=>`${i.name} × ${i.qty}`).join(", "),total:cartTotal,status:"Processing",date:new Date().toISOString().split("T")[0]};
+    setOrders(prev=>[newOrder,...prev]);
     setOrderDone({id,...form,items:[...cart],total:cartTotal});
+
+    // Send email notification
+    try {
+      await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'send_order_email',
+          order: {
+            id,
+            name: form.name,
+            phone: form.phone,
+            city: form.city,
+            address: form.address,
+            payment: form.payment,
+            items: cart.map(i=>`${i.name} × ${i.qty}`).join(", "),
+            total: cartTotal
+          }
+        })
+      });
+    } catch(e) { console.log('Email error:', e); }
+
     setCart([]); setCheckoutStep("done");
   };
 
